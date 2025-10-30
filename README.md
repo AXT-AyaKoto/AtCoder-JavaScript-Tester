@@ -19,7 +19,7 @@ This project is licensed under [the MIT License](https://opensource.org/licenses
 ## インストール方法
 
 1. [Tampermonkey](https://www.tampermonkey.net/)などのユーザースクリプトマネージャーをブラウザにインストールします。
-2. [このリンク](https://cdn.jsdelivr.net/gh/AXT-AyaKoto/AtCoder-JavaScript-Tester/@main/index.user.js)からユーザースクリプトをインストールします。
+2. [このリンク](https://cdn.jsdelivr.net/gh/AXT-AyaKoto/AtCoder-JavaScript-Tester@main/index.user.js)からユーザースクリプトをインストールします。
 
 ## 使い方
 
