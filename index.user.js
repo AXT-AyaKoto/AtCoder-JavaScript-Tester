@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AtCoder JavaScript Tester
 // @namespace    http://axtech.dev/
-// @version      0.1.0
+// @version      0.1.1
 // @description  AtCoderでJavaScriptコードをテスト実行するためのユーザースクリプト
 // @author       AXT-AyaKoto
 // @match        https://atcoder.jp/contests/*/tasks/*
@@ -16,6 +16,9 @@
 
     // config定数
     const TIMEOUT_BUFFER_RATE = 1.1; // タイムアウト判定のためのバッファ率 (例: 1.1なら10%増しでタイムアウト判定)
+
+    // 中間定数
+    const path = window.location.pathname;
 
     // あとでMonaco Editorを容易に取得できるようにletを用意しておく
     let monaco_editor;
@@ -275,7 +278,7 @@
     container_div.insertAdjacentHTML('beforeend', insertHTML);
 
     // Monaco Editorへ入れるコードについて、過去に保存されていればそれを持ってくる(なければ空文字)
-    const savedCode = GM_getValue("monaco_editor_code", "");
+    const savedCode = GM_getValue(`monaco_editor_code_${path}`, "");
 
     // Monaco Editorの読み込み
     await new Promise((resolve) => {
@@ -383,7 +386,7 @@ Main(await Bun.file("/dev/stdin").text());
     // Monaco Editorの内容が変化したら保存するようにする
     const saveEditorContent = () => {
         const code = monaco_editor.getValue();
-        GM_setValue("monaco_editor_code", code);
+        GM_setValue(`monaco_editor_code_${path}`, code);
     };
     monaco_editor.getModel().onDidChangeContent(saveEditorContent);
 
