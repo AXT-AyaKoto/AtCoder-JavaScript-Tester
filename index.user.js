@@ -5,6 +5,8 @@
 // @description  AtCoderでJavaScriptコードをテスト実行するためのユーザースクリプト
 // @author       AXT-AyaKoto
 // @match        https://atcoder.jp/contests/*/tasks/*
+// @updateURL    https://cdn.jsdelivr.net/gh/AXT-AyaKoto/AtCoder-JavaScript-Tester/@main/index.user.js
+// @downloadURL  https://cdn.jsdelivr.net/gh/AXT-AyaKoto/AtCoder-JavaScript-Tester/@main/index.user.js
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
