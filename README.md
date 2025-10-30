@@ -2,6 +2,11 @@
 
 AtCoderの問題ページで、JavaScriptのコードを編集・テスト実行・提出準備を行えるようにするユーザースクリプトです。
 
+## ライセンス
+
+copyright (c) 2025- Ayasaka-Koto
+This project is licensed under [the MIT License](https://opensource.org/licenses/MIT).
+
 ## 特徴
 
 1. 外部環境に依存しない、ブラウザ完結のコードテスト
@@ -14,8 +19,7 @@ AtCoderの問題ページで、JavaScriptのコードを編集・テスト実行
 ## インストール方法
 
 1. [Tampermonkey](https://www.tampermonkey.net/)などのユーザースクリプトマネージャーをブラウザにインストールします。
-2. 本リポジトリの`index.user.js`を開き、内容をコピーします。
-3. ユーザースクリプトマネージャーの新規スクリプト作成画面にコピーした内容を貼り付け、保存します。
+2. [このリンク](https://cdn.jsdelivr.net/gh/AXT-AyaKoto/AtCoder-JavaScript-Tester/@main/index.user.js)からユーザースクリプトをインストールします。
 
 ## 使い方
 
@@ -51,3 +55,8 @@ AtCoderの問題ページにアクセスすると、問題文が画面左に寄�
     - Allowable Error: 浮動小数点数出力の許容誤差を設定します。
         - 浮動小数点数を出力する問題の場合、ここで設定した誤差範囲内であれば正解とみなされます。
         - 浮動小数点数を出力しない問題の場合などではそのままで問題ありません。
+
+## 更新履歴
+
+- 2025-10-30: `v0.1.0`
+    - 初版リリース
