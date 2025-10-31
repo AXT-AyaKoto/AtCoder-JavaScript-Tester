@@ -1,12 +1,10 @@
 // ==UserScript==
 // @name         AtCoder JavaScript Tester
 // @namespace    http://axtech.dev/
-// @version      0.1.2
+// @version      0.2.0
 // @description  AtCoderでJavaScriptコードをテスト実行するためのユーザースクリプト
 // @author       AXT-AyaKoto
 // @match        https://atcoder.jp/contests/*/tasks/*
-// @updateURL    https://cdn.jsdelivr.net/gh/AXT-AyaKoto/AtCoder-JavaScript-Tester@main/index.user.js
-// @downloadURL  https://cdn.jsdelivr.net/gh/AXT-AyaKoto/AtCoder-JavaScript-Tester@main/index.user.js
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
