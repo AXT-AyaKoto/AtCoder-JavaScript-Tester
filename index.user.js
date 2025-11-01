@@ -404,18 +404,32 @@ Main(await Bun.file("/dev/stdin").text());
         });
         // Workerが"run"メッセージでstdinを受け取る → Main関数に渡してstdout/stderrを記録する → "result"メッセージで返す、という流れを実装するコードを生成
         const workerCommonScript = `\
+importScripts("https://cdn.jsdelivr.net/npm/node-inspect-extracted/dist/inspect.js");
+const formatValue = value => {
+    if (typeof value === 'string') {
+        return value;
+    }
+    if (typeof self.util === 'object' && typeof self.util.inspect === 'function') {
+        return self.util.inspect(value, { depth: null });
+    }
+    return String(value);
+};
 self.onmessage = async function(event) {
     if (event.data.type === "run") {
         const stdin = event.data.stdin;
         const stdout = [];
         const stderr = [];
         console.log = (...args) => {
-            stdout.push(args.join(" "));
+            stdout.push(args.map(formatValue).join(" "));
         };
         console.error = (...args) => {
-            stderr.push(args.join(" "));
+            stderr.push(args.map(formatValue).join(" "));
         };
-        Main(stdin);
+        try {
+            await Main(stdin);
+        } catch (e) {
+            stderr.push(\`Error: \${e.message} (@L:\${e.lineno ?? "??"})\`);
+        }
         self.postMessage({
             type: "result",
             stdout: stdout.join("\\n"),
@@ -521,6 +535,18 @@ ${workerCommonScript}
                             execTime: Math.ceil(execTime)
                         });
                     }
+                };
+            }),
+            // Workerでerrorが発生した場合にREとして扱うPromise
+            new Promise((resolve) => {
+                worker.onerror = (error) => {
+                    const endTime = performance.now();
+                    const execTime = endTime - startTime;
+                    resolve({
+                        stdout: "",
+                        stderr: `Error: ${error.message ?? "??"} (@L:${error.lineno ?? "??"})`,
+                        execTime: Math.ceil(execTime)
+                    });
                 };
             }),
             // 実行時間制限 × TIMEOUT_BUFFER_RATEミリ秒後にタイムアウトとするPromise
