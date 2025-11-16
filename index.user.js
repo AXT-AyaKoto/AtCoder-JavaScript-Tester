@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AtCoder JavaScript Tester
 // @namespace    http://axtech.dev/
-// @version      0.5.0
+// @version      0.5.1
 // @description  AtCoderでJavaScriptコードをテスト実行するためのユーザースクリプト
 // @author       AXT-AyaKoto
 // @match        https://atcoder.jp/contests/*/tasks/*
@@ -477,7 +477,8 @@ Main(await Bun.file("/dev/stdin").text());
         const deleteTargets = [
             'Main(require("fs").readFileSync("/dev/stdin", "utf8"));',
             'Main(await Deno.readTextFile("/dev/stdin"));',
-            'Main(await Bun.file("/dev/stdin").text());'
+            'Main(await Bun.file("/dev/stdin").text());',
+            'export {};'
         ];
         deleteTargets.forEach(target => {
             userCode = userCode.replace(target, '');
