@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AtCoder JavaScript Tester
 // @namespace    http://axtech.dev/
-// @version      0.4.0
+// @version      0.5.0
 // @description  AtCoderでJavaScriptコードをテスト実行するためのユーザースクリプト
 // @author       AXT-AyaKoto
 // @match        https://atcoder.jp/contests/*/tasks/*
@@ -238,6 +238,7 @@
     <ul class="settings_list">
         <li class="setting_item"><label for="ajt_timeout">Time Limit(ms):</label><input type="number" id="ajt_timeout" value="2000"></li>
         <li class="setting_item"><label for="ajt_allowable_error">Allowable Error:</label><input type="text" id="ajt_allowable_error" value="1e-6"></li>
+        <li class="setting_item"><label for="ajt_ts_check_enabled">ts-check (Need Reload):</label><input type="checkbox" id="ajt_ts_check_enabled"></li>
     </ul>
 </div>
 <div class="section_controls">
@@ -273,6 +274,22 @@
 `;
     container_div.insertAdjacentHTML('beforeend', insertHTML);
 
+    // ajt_ts_check_enabledを更新
+    const is_ts_check_enabled = GM_getValue("ajt_ts_check_enabled", "true");
+    if (is_ts_check_enabled === "true") {
+        document.querySelector("#ajt_ts_check_enabled").checked = true;
+    } else {
+        document.querySelector("#ajt_ts_check_enabled").checked = false;
+    }
+    document.querySelector("#ajt_ts_check_enabled").addEventListener('click', (event) => {
+        const checked = event.target.checked;
+        if (checked) {
+            GM_setValue("ajt_ts_check_enabled", "true");
+        } else {
+            GM_setValue("ajt_ts_check_enabled", "false");
+        }
+    });
+
     // Monaco Editorへ入れるコードについて、過去に保存されていればそれを持ってくる(なければ空文字)
     const savedCode = GM_getValue(`monaco_editor_code_${path}`, "");
 
@@ -294,19 +311,20 @@
     await new Promise((resolve, reject) => {
         require(['vs/editor/editor.main'], () => {
             try {
-                // Monaco Editorの設定
-                monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-                    noSemanticValidation: false
-                });
-                monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-                    ...monaco.languages.typescript.javascriptDefaults.getCompilerOptions(),
-                    checkJs: true,
-                    strictNullChecks: true,
-                    target: monaco.languages.typescript.ScriptTarget.ESNext,
-                    lib: ['esnext'],
-                    module: monaco.languages.typescript.ModuleKind.ESNext
-                });
-                monaco.languages.typescript.javascriptDefaults.addExtraLib(`
+                // 型チェックを有効化する場合の設定
+                if (GM_getValue("ajt_ts_check_enabled", "true") === "true") {
+                    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+                        noSemanticValidation: false
+                    });
+                    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+                        ...monaco.languages.typescript.javascriptDefaults.getCompilerOptions(),
+                        checkJs: true,
+                        strictNullChecks: true,
+                        target: monaco.languages.typescript.ScriptTarget.ESNext,
+                        lib: ['esnext'],
+                        module: monaco.languages.typescript.ModuleKind.ESNext
+                    });
+                    monaco.languages.typescript.javascriptDefaults.addExtraLib(`
 // Console (本来はlib: domにあるが、domをimportするとwindowやdocumentを怒ってくれないのでここで再定義)
 declare var console: {
     log(...data: any[]): void;
@@ -329,6 +347,7 @@ declare namespace Bun {
     };
 }
 `, 'ts:runtime-apis.d.ts');
+                }
 
                 const editorContainer = document.createElement('div');
                 editorContainer.style.width = '100%';
