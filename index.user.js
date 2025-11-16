@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AtCoder JavaScript Tester
 // @namespace    http://axtech.dev/
-// @version      0.3.0
+// @version      0.4.0
 // @description  AtCoderでJavaScriptコードをテスト実行するためのユーザースクリプト
 // @author       AXT-AyaKoto
 // @match        https://atcoder.jp/contests/*/tasks/*
@@ -38,7 +38,6 @@
             padding: 8px;
             box-shadow: 0px 0px 8px 2px #4444;
             background-color: #ffffff;
-            overflow-y: auto;
             z-index: 1000;
 
             display: block grid;
@@ -54,7 +53,6 @@
             &>.monaco-editor-container {
                 grid-area: editor;
                 border-radius: 8px;
-                overflow: hidden;
                 box-shadow: 0px 0px 4px 1px #0002;
             }
 
@@ -278,22 +276,60 @@
     // Monaco Editorへ入れるコードについて、過去に保存されていればそれを持ってくる(なければ空文字)
     const savedCode = GM_getValue(`monaco_editor_code_${path}`, "");
 
+    const MONACO_VERSION = 'latest';
+
     // Monaco Editorの読み込み
     await new Promise((resolve) => {
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/monaco-editor/min/vs/loader.js';
+        script.src = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min/vs/loader.js`;
         script.onload = resolve;
         document.body.appendChild(script);
     });
     console.log('loader.js の読み込み完了。');
     require.config({
         paths: {
-            'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs'
+            'vs': `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min/vs`
         }
     });
     await new Promise((resolve, reject) => {
         require(['vs/editor/editor.main'], () => {
             try {
+                // Monaco Editorの設定
+                monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+                    noSemanticValidation: false
+                });
+                monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+                    ...monaco.languages.typescript.javascriptDefaults.getCompilerOptions(),
+                    checkJs: true,
+                    strictNullChecks: true,
+                    target: monaco.languages.typescript.ScriptTarget.ESNext,
+                    lib: ['esnext'],
+                    module: monaco.languages.typescript.ModuleKind.ESNext
+                });
+                monaco.languages.typescript.javascriptDefaults.addExtraLib(`
+// Console (本来はlib: domにあるが、domをimportするとwindowやdocumentを怒ってくれないのでここで再定義)
+declare var console: {
+    log(...data: any[]): void;
+    error(...data: any[]): void;
+    warn(...data: any[]): void;
+    info(...data: any[]): void;
+    debug(...data: any[]): void;
+};
+
+// Node.js, Deno, Bunで標準入力に使うAPIの型定義
+declare module 'fs' {
+    export function readFileSync(path: string, encoding: 'utf8'): string;
+}
+declare namespace Deno {
+    function readTextFile(path: string): Promise<string>;
+}
+declare namespace Bun {
+    function file(path: string): {
+        text(): Promise<string>;
+    };
+}
+`, 'ts:runtime-apis.d.ts');
+
                 const editorContainer = document.createElement('div');
                 editorContainer.style.width = '100%';
                 editorContainer.style.height = '100%';
@@ -304,7 +340,7 @@
                     language: 'javascript', // 言語モード
                     theme: 'vs-dark',       // テーマ (vs-dark, vs-lightなど)
                     automaticLayout: true,  // コンテナサイズ変更時に自動リサイズ
-                    minimap: { enabled: true } // ミニマップの表示
+                    minimap: { enabled: false } // ミニマップの表示を無効化
                 });
                 console.log('Monaco Editorの生成に成功しました。');
                 monaco_editor = editor;
@@ -320,10 +356,17 @@
     // #ajt_insert_*_button を押下したときの処理を追加
     document.querySelector("#ajt_insert_nodejs_button").addEventListener("click", () => {
         const newCode = `\
+// ================================================================
+// ${document.querySelector("nav .contest-title").innerText.trim()}
+// ${document.title.trim()}
+// (URL: ${window.location.href})
+// JavaScript (Node.js) Submission
+// ================================================================
+/** @type {(inputText: string) => void} */
 function Main(inputText) {
     /** @type {string[][]} */
     const input = inputText.trim().split("\\n").map(row => row.split(" "));
-    // 処理
+    // ここに処理を追加
 }
 Main(require("fs").readFileSync("/dev/stdin", "utf8"));
 `;
@@ -331,22 +374,40 @@ Main(require("fs").readFileSync("/dev/stdin", "utf8"));
     });
     document.querySelector("#ajt_insert_deno_button").addEventListener("click", () => {
         const newCode = `\
+// ================================================================
+// ${document.querySelector("nav .contest-title").innerText.trim()}
+// ${document.title.trim()}
+// (URL: ${window.location.href})
+// JavaScript (Deno) Submission
+// ================================================================
+/** @type {(inputText: string) => void} */
 function Main(inputText) {
     /** @type {string[][]} */
     const input = inputText.trim().split("\\n").map(row => row.split(" "));
-    // 処理
+    // ここに処理を追加
 }
+
+export {}; // <- ts-checkにmoduleとして扱わせるために空exportが必要です。
 Main(await Deno.readTextFile("/dev/stdin"));
 `;
         monaco_editor.setValue(newCode);
     });
     document.querySelector("#ajt_insert_bun_button").addEventListener("click", () => {
         const newCode = `\
+// ================================================================
+// ${document.querySelector("nav .contest-title").innerText.trim()}
+// ${document.title.trim()}
+// (URL: ${window.location.href})
+// JavaScript (Bun) Submission
+// ================================================================
+/** @type {(inputText: string) => void} */
 function Main(inputText) {
     /** @type {string[][]} */
     const input = inputText.trim().split("\\n").map(row => row.split(" "));
-    // 処理
+    // ここに処理を追加
 }
+
+export {}; // <- ts-checkにmoduleとして扱わせるために空exportが必要です。
 Main(await Bun.file("/dev/stdin").text());
 `;
         monaco_editor.setValue(newCode);
