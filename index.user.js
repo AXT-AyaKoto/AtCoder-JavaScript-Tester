@@ -477,7 +477,8 @@ Main(await Bun.file("/dev/stdin").text());
         const deleteTargets = [
             'Main(require("fs").readFileSync("/dev/stdin", "utf8"));',
             'Main(await Deno.readTextFile("/dev/stdin"));',
-            'Main(await Bun.file("/dev/stdin").text());'
+            'Main(await Bun.file("/dev/stdin").text());',
+            'export {};'
         ];
         deleteTargets.forEach(target => {
             userCode = userCode.replace(target, '');
@@ -595,7 +596,7 @@ ${workerCommonScript}
         const workerScript = createWorkerScript();
         const blob = new Blob([workerScript], { type: 'application/javascript' });
         const workerUrl = URL.createObjectURL(blob);
-        const worker = new Worker(workerUrl, { type: 'module' });
+        const worker = new Worker(workerUrl);
         // stdinを取得
         const stdin = document.querySelector("#ajt_stdin").value;
         // runメッセージでWorkerにstdinを送信・実行開始
