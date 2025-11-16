@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AtCoder JavaScript Tester
 // @namespace    http://axtech.dev/
-// @version      0.5.0
+// @version      0.5.1
 // @description  AtCoderでJavaScriptコードをテスト実行するためのユーザースクリプト
 // @author       AXT-AyaKoto
 // @match        https://atcoder.jp/contests/*/tasks/*
@@ -595,7 +595,7 @@ ${workerCommonScript}
         const workerScript = createWorkerScript();
         const blob = new Blob([workerScript], { type: 'application/javascript' });
         const workerUrl = URL.createObjectURL(blob);
-        const worker = new Worker(workerUrl);
+        const worker = new Worker(workerUrl, { type: 'module' });
         // stdinを取得
         const stdin = document.querySelector("#ajt_stdin").value;
         // runメッセージでWorkerにstdinを送信・実行開始
