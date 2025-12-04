@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         AtCoder JavaScript Tester beta
+// @name         AtCoder JavaScript Tester
 // @namespace    http://axtech.dev/
-// @version      0.6.0
+// @version      0.6.1
 // @description  AtCoderでJavaScript・TypeScriptコードをテスト実行するためのユーザースクリプト
 // @author       AXT-AyaKoto
 // @match        https://atcoder.jp/contests/*/tasks/*
