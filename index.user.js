@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         AtCoder JavaScript Tester
+// @name         AtCoder JavaScript Tester beta
 // @namespace    http://axtech.dev/
-// @version      0.5.1
-// @description  AtCoderでJavaScriptコードをテスト実行するためのユーザースクリプト
+// @version      0.6.0
+// @description  AtCoderでJavaScript・TypeScriptコードをテスト実行するためのユーザースクリプト
 // @author       AXT-AyaKoto
 // @match        https://atcoder.jp/contests/*/tasks/*
 // @grant        GM_addStyle
@@ -239,6 +239,7 @@
         <li class="setting_item"><label for="ajt_timeout">Time Limit(ms):</label><input type="number" id="ajt_timeout" value="2000"></li>
         <li class="setting_item"><label for="ajt_allowable_error">Allowable Error:</label><input type="text" id="ajt_allowable_error" value="1e-6"></li>
         <li class="setting_item"><label for="ajt_ts_check_enabled">ts-check (Need Reload):</label><input type="checkbox" id="ajt_ts_check_enabled"></li>
+        <li class="setting_item"><label for="ajt_typescript_enabled">TypeScript (Need Reload):</label><input type="checkbox" id="ajt_typescript_enabled"></li>
     </ul>
 </div>
 <div class="section_controls">
@@ -290,6 +291,22 @@
         }
     });
 
+    // ajt_typescript_enabledを更新
+    const is_typescript_enabled = GM_getValue("ajt_typescript_enabled", "false");
+    if (is_typescript_enabled === "true") {
+        document.querySelector("#ajt_typescript_enabled").checked = true;
+    } else {
+        document.querySelector("#ajt_typescript_enabled").checked = false;
+    }
+    document.querySelector("#ajt_typescript_enabled").addEventListener('click', (event) => {
+        const checked = event.target.checked;
+        if (checked) {
+            GM_setValue("ajt_typescript_enabled", "true");
+        } else {
+            GM_setValue("ajt_typescript_enabled", "false");
+        }
+    });
+
     // Monaco Editorへ入れるコードについて、過去に保存されていればそれを持ってくる(なければ空文字)
     const savedCode = GM_getValue(`monaco_editor_code_${path}`, "");
 
@@ -311,20 +328,7 @@
     await new Promise((resolve, reject) => {
         require(['vs/editor/editor.main'], () => {
             try {
-                // 型チェックを有効化する場合の設定
-                if (GM_getValue("ajt_ts_check_enabled", "true") === "true") {
-                    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-                        noSemanticValidation: false
-                    });
-                    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-                        ...monaco.languages.typescript.javascriptDefaults.getCompilerOptions(),
-                        checkJs: true,
-                        strictNullChecks: true,
-                        target: monaco.languages.typescript.ScriptTarget.ESNext,
-                        lib: ['esnext'],
-                        module: monaco.languages.typescript.ModuleKind.ESNext
-                    });
-                    monaco.languages.typescript.javascriptDefaults.addExtraLib(`
+                const extra_types = `
 // Console (本来はlib: domにあるが、domをimportするとwindowやdocumentを怒ってくれないのでここで再定義)
 declare var console: {
     log(...data: any[]): void;
@@ -338,6 +342,9 @@ declare var console: {
 declare module 'fs' {
     export function readFileSync(path: string, encoding: 'utf8'): string;
 }
+declare var require: {
+    (moduleName: 'fs'): typeof import('fs');
+};
 declare namespace Deno {
     function readTextFile(path: string): Promise<string>;
 }
@@ -346,7 +353,32 @@ declare namespace Bun {
         text(): Promise<string>;
     };
 }
-`, 'ts:runtime-apis.d.ts');
+`;
+                // 型チェックを有効化する場合の設定
+                if (GM_getValue("ajt_ts_check_enabled", "true") === "true") {
+                    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+                        noSemanticValidation: false
+                    });
+                    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+                        ...monaco.languages.typescript.javascriptDefaults.getCompilerOptions(),
+                        checkJs: true,
+                        strictNullChecks: true,
+                        target: monaco.languages.typescript.ScriptTarget.ESNext,
+                        lib: ['esnext'],
+                        module: monaco.languages.typescript.ModuleKind.ESNext
+                    });
+                    monaco.languages.typescript.javascriptDefaults.addExtraLib(extra_types, 'ts:runtime-apis.d.ts');
+                }
+                // TypeScriptモードを有効化する場合の設定
+                if (GM_getValue("ajt_typescript_enabled", "false") === "true") {
+                    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+                        ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+                        target: monaco.languages.typescript.ScriptTarget.ESNext,
+                        lib: ['esnext'],
+                        module: monaco.languages.typescript.ModuleKind.ESNext,
+                        strict: true,
+                    });
+                    monaco.languages.typescript.typescriptDefaults.addExtraLib(extra_types, 'ts:runtime-apis.d.ts');
                 }
 
                 const editorContainer = document.createElement('div');
@@ -354,14 +386,15 @@ declare namespace Bun {
                 editorContainer.style.height = '100%';
                 editorContainer.classList.add('monaco-editor-container');
                 container_div.appendChild(editorContainer);
+                const language_mode = GM_getValue("ajt_typescript_enabled", "false") === "true" ? 'typescript' : 'javascript';
                 const editor = monaco.editor.create(editorContainer, {
                     value: savedCode,
-                    language: 'javascript', // 言語モード
+                    language: language_mode, // 言語モード
                     theme: 'vs-dark',       // テーマ (vs-dark, vs-lightなど)
                     automaticLayout: true,  // コンテナサイズ変更時に自動リサイズ
                     minimap: { enabled: false } // ミニマップの表示を無効化
                 });
-                console.log('Monaco Editorの生成に成功しました。');
+                console.log(`Monaco Editorの生成に成功しました。言語モード: ${language_mode}`);
                 monaco_editor = editor;
                 resolve();
 
@@ -372,65 +405,139 @@ declare namespace Bun {
         });
     });
 
-    // #ajt_insert_*_button を押下したときの処理を追加
-    document.querySelector("#ajt_insert_nodejs_button").addEventListener("click", () => {
-        const newCode = `\
+    // TypeScriptモードの場合、トランスパイル用にSucraseを読み込んでおく
+    if (GM_getValue("ajt_typescript_enabled", "false") === "true") {
+        await new Promise(async (resolve) => {
+            // 下記URLはES Module形式でSucraseを提供している
+            const SUCRASE_URL = "https://esm.sh/sucrase@3.35.1/?target=esnext";
+            const module = await import(SUCRASE_URL);
+            window.Sucrase = module;
+            resolve();
+        });
+        // test: Sucraseが正しく読み込まれたか確認
+        console.log('Sucraseの読み込みに成功しました。', window.Sucrase);
+    }
+
+    // テンプレートコードの事前準備
+    /** @type {(environment: ("Node.js" | "Deno" | "Bun"), language: ("JavaScript" | "TypeScript")) => string} */
+    const getTemplateCode = (environment, language) => {
+        const comment_section = `\
 // ================================================================
 // ${document.querySelector("nav .contest-title").innerText.trim()}
 // ${document.title.trim()}
 // (URL: ${window.location.href})
-// JavaScript (Node.js) Submission
+// ${language} (${environment}) Submission
 // ================================================================
+`;
+        const main_function_section = {
+            "JavaScript": `\
 /** @type {(inputText: string) => void} */
 function Main(inputText) {
     /** @type {string[][]} */
     const input = inputText.trim().split("\\n").map(row => row.split(" "));
-    // ここに処理を追加
+    // Add your code here
 }
+`,
+            "TypeScript": `\
+function Main(inputText: string): void {
+    const input: string[][] = inputText.trim().split("\\n").map(row => row.split(" "));
+    // Add your code here
+}
+`
+        }[language];
+        const stdin_section = {
+            "Node.js": `\
 Main(require("fs").readFileSync("/dev/stdin", "utf8"));
-`;
+`,
+            "Deno": `\
+export {}; // <- An empty export is required so that ts-check can determine it as a module.
+Main(await Deno.readTextFile("/dev/stdin"));
+`,
+            "Bun": `\
+export {}; // <- An empty export is required so that ts-check can determine it as a module.
+Main(await Bun.file("/dev/stdin").text());
+`
+        }[environment];
+        return `${comment_section}${main_function_section}\n${stdin_section}`;
+    };
+    const language_mode = GM_getValue("ajt_typescript_enabled", "false") === "true" ? "TypeScript" : "JavaScript";
+    // 「このページで挿入される可能性のあるテンプレートコードのSet」を作る
+    const possibleTemplateCodes = new Set();
+    ["Node.js", "Deno", "Bun"].forEach(env => {
+        possibleTemplateCodes.add(getTemplateCode(env, "JavaScript"));
+        possibleTemplateCodes.add(getTemplateCode(env, "TypeScript"));
+    });
+    possibleTemplateCodes.add(""); // 空文字列も追加
+    // #ajt_insert_*_button を押下したときの処理を追加
+    // もし現在のコードがテンプレートコードのいずれかと一致していなければ、確認ダイアログを出す
+    document.querySelector("#ajt_insert_nodejs_button").addEventListener("click", () => {
+        const currentCode = monaco_editor.getValue();
+        if (!possibleTemplateCodes.has(currentCode)) {
+            const proceed = window.confirm("If you insert it now, the current code will be lost. Do you want to proceed?");
+            if (!proceed) return;
+        }
+        const newCode = getTemplateCode("Node.js", language_mode);
         monaco_editor.setValue(newCode);
     });
     document.querySelector("#ajt_insert_deno_button").addEventListener("click", () => {
-        const newCode = `\
-// ================================================================
-// ${document.querySelector("nav .contest-title").innerText.trim()}
-// ${document.title.trim()}
-// (URL: ${window.location.href})
-// JavaScript (Deno) Submission
-// ================================================================
-/** @type {(inputText: string) => void} */
-function Main(inputText) {
-    /** @type {string[][]} */
-    const input = inputText.trim().split("\\n").map(row => row.split(" "));
-    // ここに処理を追加
-}
-
-export {}; // <- ts-checkにmoduleとして扱わせるために空exportが必要です。
-Main(await Deno.readTextFile("/dev/stdin"));
-`;
+        const currentCode = monaco_editor.getValue();
+        if (!possibleTemplateCodes.has(currentCode)) {
+            const proceed = window.confirm("If you insert it now, the current code will be lost. Do you want to proceed?");
+            if (!proceed) return;
+        }
+        const newCode = getTemplateCode("Deno", language_mode);
         monaco_editor.setValue(newCode);
     });
     document.querySelector("#ajt_insert_bun_button").addEventListener("click", () => {
-        const newCode = `\
-// ================================================================
-// ${document.querySelector("nav .contest-title").innerText.trim()}
-// ${document.title.trim()}
-// (URL: ${window.location.href})
-// JavaScript (Bun) Submission
-// ================================================================
-/** @type {(inputText: string) => void} */
-function Main(inputText) {
-    /** @type {string[][]} */
-    const input = inputText.trim().split("\\n").map(row => row.split(" "));
-    // ここに処理を追加
-}
-
-export {}; // <- ts-checkにmoduleとして扱わせるために空exportが必要です。
-Main(await Bun.file("/dev/stdin").text());
-`;
+        const currentCode = monaco_editor.getValue();
+        if (!possibleTemplateCodes.has(currentCode)) {
+            const proceed = window.confirm("If you insert it now, the current code will be lost. Do you want to proceed?");
+            if (!proceed) return;
+        }
+        const newCode = getTemplateCode("Bun", language_mode);
         monaco_editor.setValue(newCode);
     });
+
+    // 問題文の"入力例 n"セクションに[Copy IO]ボタンを追加する処理
+    (() => {
+        const sampleIOs = {
+            I_pre: new Map(),
+            I_el: new Map(),
+            O_pre: new Map(),
+            nums: new Set()
+        };
+        document.querySelectorAll(".lang-ja section:has(h3~pre)").forEach(sect => {
+            const sample_h3_text = sect.querySelector("h3").childNodes[0].textContent;
+            const sample_pre_text = sect.querySelector("pre").childNodes[0].textContent;
+            if (sample_h3_text.startsWith("入力例 ")) {
+                const sample_number = Number(sample_h3_text.slice(4));
+                sampleIOs.I_pre.set(sample_number, sample_pre_text);
+                sampleIOs.I_el.set(sample_number, sect.querySelector("h3"));
+                sampleIOs.nums.add(sample_number);
+            }
+            if (sample_h3_text.startsWith("出力例 ")) {
+                const sample_number = Number(sample_h3_text.slice(4));
+                sampleIOs.O_pre.set(sample_number, sample_pre_text);
+                sampleIOs.nums.add(sample_number);
+            }
+        });
+        sampleIOs.nums.forEach(num => {
+            const input_section_h3 = sampleIOs.I_el.get(num);
+            if (!input_section_h3) return;
+            const input_text = sampleIOs.I_pre.get(num) || "";
+            const output_text = sampleIOs.O_pre.get(num) || "";
+            const copy_button = document.createElement("span");
+            copy_button.classList.add("btn", "btn-default", "btn-sm", "btn-copy", "ml-1");
+            copy_button.textContent = "Copy IO";
+            // 対応するh3要素の最後の子要素として追加
+            input_section_h3.appendChild(copy_button);
+            // クリック時、ajt_stdinとajt_answerにそれぞれinput_textとoutput_textをセットする
+            copy_button.addEventListener("click", () => {
+                document.querySelector("#ajt_stdin").value = input_text;
+                document.querySelector("#ajt_answer").value = output_text;
+            });
+        });
+    })();
 
     // 問題ページのソースコード欄に文字列をsetする関数
     const setSourceCode = (code) => {
@@ -473,6 +580,14 @@ Main(await Bun.file("/dev/stdin").text());
     const createWorkerScript = () => {
         // Editorのコードを取得
         let userCode = monaco_editor.getValue();
+        // TypeScriptモードの場合、SucraseでJavaScriptにトランスパイルする (型を消すだけでOK)
+        if (GM_getValue("ajt_typescript_enabled", "false") === "true") {
+            const transformed = window.Sucrase.transform(userCode, {
+                transforms: ['typescript'],
+                disableESTransforms: true
+            });
+            userCode = transformed.code;
+        }
         // `Main(require("fs").readFileSync("/dev/stdin", "utf8"));`, `Main(await Deno.readTextFile("/dev/stdin"));`, `Main(await Bun.file("/dev/stdin").text());`があれば削除する
         const deleteTargets = [
             'Main(require("fs").readFileSync("/dev/stdin", "utf8"));',
